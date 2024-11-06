@@ -4,7 +4,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const fetch = require("node-fetch");
 const cron = require("node-cron");
-
+const path = require("path");
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -16,7 +16,7 @@ mongoose
 
 // Middleware for parsing form data
 app.use(bodyParser.urlencoded({ extended: true }));
-// app.set("views", path.join(__dirname, "views"));
+app.set("views", path.join(__dirname, "views"));
 app.set("view engine", "ejs");
 
 // Worker Schema and Model
