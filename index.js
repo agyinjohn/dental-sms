@@ -130,7 +130,7 @@ async function sendBirthdaySMS() {
 }
 
 // Schedule Task to Run Daily at 9 AM
-cron.schedule("0 9 * * *", sendBirthdaySMS);
+cron.schedule("* * * * *", sendBirthdaySMS);
 console.log("Cron job scheduled to run every day at 9 AM.");
 
 // Serve React client in production
