@@ -4,9 +4,11 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const fetch = require("node-fetch");
 const cron = require("node-cron");
+const cors = require("cors");
 const path = require("path");
+
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 5000; // Express server port
 
 // MongoDB connection
 mongoose
@@ -15,73 +17,84 @@ mongoose
   .catch((err) => console.error("MongoDB connection error:", err));
 
 // Middleware for parsing form data
+app.use(
+  cors({
+    origin: "http://localhost:3001", // React client URL for development
+    credentials: true,
+  })
+);
 app.use(bodyParser.urlencoded({ extended: true }));
-app.set("views", path.join(__dirname, "views"));
-app.set("view engine", "ejs");
+app.use(bodyParser.json()); // Enable JSON parsing
 
 // Worker Schema and Model
 const workerSchema = new mongoose.Schema({
   name: String,
   phoneNumber: String,
-  birthday: String, // MM-DD format
+  birthday: String, // Format: MM-DD
 });
 
 const Worker = mongoose.model("Worker", workerSchema);
 
-// Route to display the form and list of workers
-app.get("/", async (req, res) => {
+// API Routes
+
+// Get all workers
+app.get("/workers", async (req, res) => {
   try {
     const workers = await Worker.find();
-    res.render("index", { workers });
+    res.json(workers);
   } catch (err) {
     console.error("Error fetching workers:", err);
-    res.send("Error fetching workers.");
+    res.status(500).json({ error: "Error fetching workers" });
   }
 });
 
-// Route to add a worker
+// Add a new worker
 app.post("/add-worker", async (req, res) => {
   const { name, phoneNumber, birthday } = req.body;
   const newWorker = new Worker({ name, phoneNumber, birthday });
   try {
     await newWorker.save();
-    res.redirect("/");
+    res.status(201).json(newWorker);
   } catch (err) {
     console.error("Error adding worker:", err);
-    res.send("Error adding worker.");
+    res.status(500).json({ error: "Error adding worker" });
   }
 });
 
-// Route to update worker details
-app.post("/edit-worker/:id", async (req, res) => {
+// Update a worker
+app.put("/edit-worker/:id", async (req, res) => {
   const { id } = req.params;
   const { name, phoneNumber, birthday } = req.body;
   try {
-    await Worker.findByIdAndUpdate(id, { name, phoneNumber, birthday });
-    res.redirect("/");
+    const updatedWorker = await Worker.findByIdAndUpdate(
+      id,
+      { name, phoneNumber, birthday },
+      { new: true }
+    );
+    res.json(updatedWorker);
   } catch (err) {
     console.error("Error updating worker:", err);
-    res.send("Error updating worker.");
+    res.status(500).json({ error: "Error updating worker" });
   }
 });
 
-// Route to delete a worker
-app.get("/delete-worker/:id", async (req, res) => {
+// Delete a worker
+app.delete("/delete-worker/:id", async (req, res) => {
   try {
     await Worker.findByIdAndDelete(req.params.id);
-    res.redirect("/");
+    res.json({ message: "Worker deleted successfully" });
   } catch (err) {
     console.error("Error deleting worker:", err);
-    res.send("Error deleting worker.");
+    res.status(500).json({ error: "Error deleting worker" });
   }
 });
 
-// Send SMS to Workers on Their Birthday using Arkesel API
+// Send SMS to Workers on Their Birthday
 async function sendBirthdaySMS() {
   try {
     const today = new Date().toISOString().slice(5, 10); // MM-DD format
-    console.log(today);
     const workers = await Worker.find({ birthday: today });
+
     if (workers.length === 0) {
       console.log("No birthdays today.");
       return;
@@ -119,6 +132,14 @@ async function sendBirthdaySMS() {
 // Schedule Task to Run Daily at 9 AM
 cron.schedule("0 9 * * *", sendBirthdaySMS);
 console.log("Cron job scheduled to run every day at 9 AM.");
+
+// Serve React client in production
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static(path.join(__dirname, "client/build")));
+  app.get("*", (req, res) => {
+    res.sendFile(path.resolve(__dirname, "client", "build", "index.html"));
+  });
+}
 
 // Start the Express server
 app.listen(port, () => {
