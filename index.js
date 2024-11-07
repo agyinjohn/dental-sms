@@ -19,7 +19,7 @@ mongoose
 // Middleware for parsing form data
 app.use(
   cors({
-    origin: "http://localhost:3001", // React client URL for development
+    origin: "https://dental-sms.netlify.app", // React client URL for development
     credentials: true,
   })
 );
