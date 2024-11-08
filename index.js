@@ -9,7 +9,7 @@ const path = require("path");
 
 const app = express();
 const port = process.env.PORT || 5000; // Express server port
-
+let lastSentDate = null;
 // MongoDB connection
 mongoose
   .connect(process.env.MONGO_URI)
@@ -90,10 +90,19 @@ app.delete("/delete-worker/:id", async (req, res) => {
 });
 
 // Send SMS to Workers on Their Birthday
+
 async function sendBirthdaySMS() {
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD format
+
+  // Only run if lastSentDate is different from today
+  if (lastSentDate === today) {
+    console.log("SMS already sent for today.");
+    return;
+  }
+
   try {
-    const today = new Date().toISOString().slice(5, 10); // MM-DD format
-    const workers = await Worker.find({ birthday: today });
+    const todayMMDD = today.slice(5, 10); // MM-DD format for matching
+    const workers = await Worker.find({ birthday: todayMMDD });
 
     if (workers.length === 0) {
       console.log("No birthdays today.");
@@ -104,7 +113,6 @@ async function sendBirthdaySMS() {
       const message = `Happy Birthday, ${worker.name}! Have a fantastic day!`;
       const phoneNumber = worker.phoneNumber;
 
-      // Build the Arkesel API URL
       const url = `https://sms.arkesel.com/sms/api?action=send-sms&api_key=${
         process.env.ARKESSEL_API_KEY
       }&to=${phoneNumber}&from=${process.env.SENDERID}&sms=${encodeURIComponent(
@@ -124,13 +132,20 @@ async function sendBirthdaySMS() {
         console.error(`Failed to send SMS to ${worker.name}:`, error);
       }
     }
+
+    // Update lastSentDate after successful SMS sending
+    lastSentDate = today;
   } catch (err) {
     console.error("Error fetching workers:", err);
   }
 }
 
 // Schedule Task to Run Daily at 9 AM
-cron.schedule("0 9 * * *", sendBirthdaySMS);
+cron.schedule("0 9 * * *", sendBirthdaySMS, {
+  timezone: "Africa/Accra", // Ghana's timezone
+});
+console.log("Cron job scheduled to run every day at 9 AM.");
+
 console.log("Cron job scheduled to run every day at 9 AM.");
 
 // Serve React client in production
