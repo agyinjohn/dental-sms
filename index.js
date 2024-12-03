@@ -141,9 +141,7 @@ async function sendBirthdaySMS() {
 }
 
 // Schedule Task to Run Daily at 9 AM
-cron.schedule("0 9 * * *", sendBirthdaySMS, {
-  timezone: "Africa/Accra", // Ghana's timezone
-});
+cron.schedule("0 11 * * *", sendBirthdaySMS);
 console.log("Cron job scheduled to run every day at 9 AM.");
 
 console.log("Cron job scheduled to run every day at 9 AM.");
